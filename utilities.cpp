@@ -20,7 +20,7 @@ std::vector<Point> loadPoints(const std::string& filename) {
     return points;
 }
 
-// not using library to comply with requirements. something like tinyobjloader would be suitable otherwise.
+// Not using library to comply with requirements. Something like tinyobjloader would be suitable otherwise.
 std::vector<Triangle> loadOBJ(const std::string& filename) {
     std::vector<Triangle> triangles;
     std::ifstream file(filename);
@@ -42,10 +42,9 @@ std::vector<Triangle> loadOBJ(const std::string& filename) {
             vertices.push_back(v);
         } 
         else if (identifier == 'f') {
-            int idx1, idx2, idx3; // Indices to the vertices
+            int idx1, idx2, idx3; 
             iss >> idx1 >> idx2 >> idx3;
             
-            // Adjusting for 0-based indexing
             idx1--; idx2--; idx3--;
 
             if(idx1 < vertices.size() && idx2 < vertices.size() && idx3 < vertices.size()) {
@@ -71,19 +70,16 @@ void saveDataToOBJ(const std::vector<Point>& insidePoints,
         return;
     }
 
-    // Save inside points as vertices
     file << "o InsidePoints\n";
     for (const auto& pt : insidePoints) {
         file << "v " << pt.x << " " << pt.y << " " << pt.z << "\n";
     }
 
-    // Save outside points as vertices
     file << "o OutsidePoints\n";
     for (const auto& pt : outsidePoints) {
         file << "v " << pt.x << " " << pt.y << " " << pt.z << "\n";
     }
 
-    // Save triangles
     file << "o Triangles\n";
     int offset = insidePoints.size() + outsidePoints.size();  // account for the point vertices
     for (const auto& tri : triangles) {

@@ -58,25 +58,20 @@ bool rayIntersectsTriangle(const Point& rayOrigin, const Point& rayDirection, co
 
 
 bool isPointInsideMesh(const Point& p, const std::vector<Triangle>& triangles) {
-    Point rayDirection = { 1.0f, 0.0f, 0.0f }; // Arbitrary direction
-    float length = std::sqrt(rayDirection.x * rayDirection.x + rayDirection.y * rayDirection.y + rayDirection.z * rayDirection.z);
-    rayDirection.x /= length;
-    rayDirection.y /= length;
-    rayDirection.z /= length;
+    Point rayDirection = { 1.0f, 0.0f, 0.0f }; // Already normalized
 
-    int intersections = 0;
-    AABB globalBox;
+    AABB globalBox = { { FLT_MAX, FLT_MAX, FLT_MAX }, { -FLT_MAX, -FLT_MAX, -FLT_MAX } };
 
-    // Compute global bounding box for the entire mesh
+    // Efficiently compute the global bounding box
     for (const Triangle& tri : triangles) {
         for (int i = 0; i < 3; i++) {
-            const Point* vertex = &tri.v1 + i;
-            globalBox.min.x = std::min(globalBox.min.x, vertex->x);
-            globalBox.min.y = std::min(globalBox.min.y, vertex->y);
-            globalBox.min.z = std::min(globalBox.min.z, vertex->z);
-            globalBox.max.x = std::max(globalBox.max.x, vertex->x);
-            globalBox.max.y = std::max(globalBox.max.y, vertex->y);
-            globalBox.max.z = std::max(globalBox.max.z, vertex->z);
+            const Point& vertex = (&tri.v1)[i]; // More readable indexing
+            globalBox.min.x = std::min(globalBox.min.x, vertex.x);
+            globalBox.min.y = std::min(globalBox.min.y, vertex.y);
+            globalBox.min.z = std::min(globalBox.min.z, vertex.z);
+            globalBox.max.x = std::max(globalBox.max.x, vertex.x);
+            globalBox.max.y = std::max(globalBox.max.y, vertex.y);
+            globalBox.max.z = std::max(globalBox.max.z, vertex.z);
         }
     }
 
@@ -84,33 +79,28 @@ bool isPointInsideMesh(const Point& p, const std::vector<Triangle>& triangles) {
         return false;
     }
 
-    std::atomic<int> atomicIntersections(0); // For concurrent writes from multiple threads
-    const int numThreads = std::thread::hardware_concurrency(); // Determine the optimal number of threads
+    std::atomic<int> atomicIntersections(0); 
+    const int numThreads = std::thread::hardware_concurrency();
     std::vector<std::thread> threads;
 
     for (int t = 0; t < numThreads; t++) {
         threads.push_back(std::thread([&](int start, int end) {
             int localIntersections = 0;
             for (int i = start; i < end; i++) {
-                AABB triangleBox;
-                triangleBox.min = triangles[i].v1;
-                triangleBox.max = triangles[i].v1;
+                AABB triangleBox = { triangles[i].v1, triangles[i].v1 }; // Init with first vertex
+
                 for (int j = 1; j < 3; j++) {
-                    const Point* vertex = &triangles[i].v1 + j;
-                    triangleBox.min.x = std::min(triangleBox.min.x, vertex->x);
-                    triangleBox.min.y = std::min(triangleBox.min.y, vertex->y);
-                    triangleBox.min.z = std::min(triangleBox.min.z, vertex->z);
-                    triangleBox.max.x = std::max(triangleBox.max.x, vertex->x);
-                    triangleBox.max.y = std::max(triangleBox.max.y, vertex->y);
-                    triangleBox.max.z = std::max(triangleBox.max.z, vertex->z);
+                    const Point& vertex = (&triangles[i].v1)[j]; // More readable indexing
+                    triangleBox.min.x = std::min(triangleBox.min.x, vertex.x);
+                    triangleBox.min.y = std::min(triangleBox.min.y, vertex.y);
+                    triangleBox.min.z = std::min(triangleBox.min.z, vertex.z);
+                    triangleBox.max.x = std::max(triangleBox.max.x, vertex.x);
+                    triangleBox.max.y = std::max(triangleBox.max.y, vertex.y);
+                    triangleBox.max.z = std::max(triangleBox.max.z, vertex.z);
                 }
 
                 if (rayIntersectsAABB(p, rayDirection, triangleBox) && rayIntersectsTriangle(p, rayDirection, triangles[i])) {
                     localIntersections++;
-                    if (localIntersections % 2 == 1) { // If odd intersections, point is inside
-                        atomicIntersections += localIntersections;
-                        return;
-                    }
                 }
             }
             atomicIntersections += localIntersections;
@@ -121,7 +111,7 @@ bool isPointInsideMesh(const Point& p, const std::vector<Triangle>& triangles) {
         thread.join();
     }
 
-    intersections = atomicIntersections.load();
-    return intersections % 2 == 1; // If odd intersections, point is inside
+    return atomicIntersections.load() % 2 == 1;
 }
+
 

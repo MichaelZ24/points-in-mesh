@@ -1,6 +1,5 @@
 #include "main.hpp"
 
-// Given a range of points, checks which ones are inside the mesh.
 void checkPointsInRange(const std::vector<Point>& points, 
                         const std::vector<Triangle>& triangles, 
                         int startIdx, 

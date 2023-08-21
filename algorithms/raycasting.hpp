@@ -8,6 +8,8 @@
 #include <atomic>
 #include <vector>
 #include <cmath>
+#include <cfloat>
+
 
 /** Check if a ray intersects a triangle.
  *  @param rayOrigin The origin of the ray.

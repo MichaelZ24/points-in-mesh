@@ -27,7 +27,6 @@ bool rayIntersectsAABB(const Point& rayOrigin, const Point& rayDirection, const 
 
     if ((tmin > tzmax) || (tzmin > tmax))
         return false;
-
-    // If we've gotten here, then the ray intersects the bounding box.
+        
     return true;
 }
